@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sistema de Recepción de Documentos</title>
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Bootstrap Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.10.0/font/bootstrap-icons.min.css" rel="stylesheet">
+    <!-- Vue 3 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.3.4/vue.global.min.js"></script>
+    <style>
+        .navbar-brand {
+            font-weight: bold;
+        }
+        .table-container {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .btn-add-row {
+            background: linear-gradient(45deg, #28a745, #20c997);
+            border: none;
+            border-radius: 50px;
+            padding: 10px 20px;
+            color: white;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(40, 167, 69, 0.3);
+        }
+        .btn-add-row:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+            background: linear-gradient(45deg, #218838, #1ea085);
+        }
+        .form-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+        }
+        .btn-primary {
+            background: linear-gradient(45deg, #007bff, #0056b3);
+            border: none;
+            border-radius: 25px;
+            padding: 12px 30px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 15px rgba(0, 123, 255, 0.3);
+        }
+        .btn-danger {
+            background: linear-gradient(45deg, #dc3545, #c82333);
+            border: none;
+            border-radius: 20px;
+            transition: all 0.3s ease;
+        }
+        .btn-danger:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+        }
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .navbar {
+            background: rgba(255, 255, 255, 0.95) !important;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+        }
+        .table {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        .table thead {
+            background: linear-gradient(45deg, #495057, #343a40);
+            color: white;
+        }
+        .fade-enter-active, .fade-leave-active {
+            transition: opacity 0.3s ease;
+        }
+        .fade-enter-from, .fade-leave-to {
+            opacity: 0;
+        }
+        .slide-enter-active {
+            transition: all 0.3s ease;
+        }
+        .slide-enter-from {
+            transform: translateY(-20px);
+            opacity: 0;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <!-- Navbar -->
+        <nav class="navbar navbar-expand-lg navbar-light">
+            <div class="container">
+                <a class="navbar-brand" href="#">
+                    <i class="bi bi-building me-2"></i>
+                    Sistema de Obra
+                </a>
+                <div class="navbar-nav ms-auto">
+                    <span class="navbar-text me-3" v-if="isLoggedIn">
+                        Bienvenido, {{ currentUser }}
+                    </span>
+                    <button v-if="!isLoggedIn" @click="showLogin = true" class="btn btn-outline-primary me-2">
+                        <i class="bi bi-box-arrow-in-right me-1"></i>Iniciar Sesión
+                    </button>
+                    <button v-if="isLoggedIn" @click="logout" class="btn btn-outline-danger">
+                        <i class="bi bi-box-arrow-right me-1"></i>Cerrar Sesión
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Login Modal -->
+        <div v-if="showLogin" class="modal d-block" style="background: rgba(0,0,0,0.5);">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Iniciar Sesión</h5>
+                        <button @click="showLogin = false" class="btn-close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form @submit.prevent="login">
+                            <div class="mb-3">
+                                <label class="form-label">Usuario</label>
+                                <input v-model="loginForm.username" type="text" class="form-control" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Contraseña</label>
+                                <input v-model="loginForm.password" type="password" class="form-control" required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100">Ingresar</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content -->
+        <div class="container mt-4" v-if="isLoggedIn">
+            <div class="row justify-content-center">
+                <div class="col-12">
+                    <div class="form-container p-4">
+                        <h2 class="text-center mb-4">
+                            <i class="bi bi-file-text me-2"></i>
+                            Recepción de Documentos Obra a Oficina
+                        </h2>
+
+                        <!-- Formulario Principal -->
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title mb-3">Información General</h5>
+                                <div class="row">
+                                    <div class="col-md-4">
+                                        <label class="form-label">Nombre</label>
+                                        <input v-model="form.nombre" type="text" class="form-control" placeholder="Ingrese nombre">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Obra en Construcción</label>
+                                        <input v-model="form.obra" type="text" class="form-control" placeholder="Nombre de la obra">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label">Fecha</label>
+                                        <input v-model="form.fecha" type="date" class="form-control">
+                                    </div>
+                                </div>
+                                <div class="row mt-3">
+                                    <div class="col-12">
+                                        <label class="form-label">Observaciones Generales</label>
+                                        <textarea v-model="form.observaciones" class="form-control" rows="3" placeholder="Ingrese observaciones..."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tabla de Documentos -->
+                        <div class="card">
+                            <div class="card-body">
+                                <div class="d-flex justify-content-between align-items-center mb-3">
+                                    <h5 class="card-title mb-0">Documentos</h5>
+                                    <button @click="agregarFila" class="btn btn-add-row">
+                                        <i class="bi bi-plus-circle me-1"></i>Agregar Documento
+                                    </button>
+                                </div>
+
+                                <div class="table-container">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>OC Compra</th>
+                                                <th>Factura</th>
+                                                <th>Guía Despacho</th>
+                                                <th>Otros</th>
+                                                <th>Cantidad</th>
+                                                <th>Unidad</th>
+                                                <th>Detalle</th>
+                                                <th>Proveedor</th>
+                                                <th>Acciones</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <transition-group name="slide">
+                                                <tr v-for="(documento, index) in documentos" :key="documento.id">
+                                                    <td>
+                                                        <input v-model="documento.oc_compra" type="text" class="form-control form-control-sm">
+                                                    </td>
+                                                    <td>
+                                                        <input v-model="documento.factura" type="text" class="form-control form-control-sm">
+                                                    </td>
+                                                    <td>
+                                                        <input v-model="documento.guia_despacho" type="text" class="form-control form-control-sm">
+                                                    </td>
+                                                    <td>
+                                                        <input v-model="documento.otros" type="text" class="form-control form-control-sm">
+                                                    </td>
+                                                    <td>
+                                                        <input v-model="documento.cantidad" type="number" class="form-control form-control-sm" min="0" step="0.01">
+                                                    </td>
+                                                    <td>
+                                                        <select v-model="documento.unidad" class="form-select form-select-sm">
+                                                            <option value="">Seleccionar</option>
+                                                            <option value="metros">Metros</option>
+                                                            <option value="kilos">Kilos</option>
+                                                            <option value="unidad">Unidad</option>
+                                                            <option value="litros">Litros</option>
+                                                            <option value="m2">m²</option>
+                                                            <option value="m3">m³</option>
+                                                        </select>
+                                                    </td>
+                                                    <td>
+                                                        <input v-model="documento.detalle" type="text" class="form-control form-control-sm" placeholder="Descripción">
+                                                    </td>
+                                                    <td>
+                                                        <input v-model="documento.proveedor" type="text" class="form-control form-control-sm" placeholder="Nombre proveedor">
+                                                    </td>
+                                                    <td>
+                                                        <button @click="eliminarFila(index)" class="btn btn-danger btn-sm">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            </transition-group>
+                                        </tbody>
+                                    </table>
+
+                                    <div v-if="documentos.length === 0" class="text-center text-muted py-4">
+                                        <i class="bi bi-inbox display-4"></i>
+                                        <p class="mt-2">No hay documentos agregados</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botones de Acción -->
+                        <div class="d-flex justify-content-end gap-2 mt-4">
+                            <button @click="limpiarFormulario" class="btn btn-secondary">
+                                <i class="bi bi-arrow-clockwise me-1"></i>Limpiar
+                            </button>
+                            <button @click="guardarFormulario" class="btn btn-primary">
+                                <i class="bi bi-check-circle me-1"></i>Guardar Recepción
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Mensaje cuando no está logueado -->
+        <div v-if="!isLoggedIn" class="container mt-5">
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <div class="card text-center">
+                        <div class="card-body">
+                            <i class="bi bi-lock display-1 text-muted"></i>
+                            <h3 class="mt-3">Acceso Requerido</h3>
+                            <p>Debe iniciar sesión para acceder al sistema de recepción de documentos.</p>
+                            <button @click="showLogin = true" class="btn btn-primary">
+                                <i class="bi bi-box-arrow-in-right me-1"></i>Iniciar Sesión
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Toast de notificaciones -->
+        <div v-if="showToast" class="position-fixed top-0 end-0 p-3" style="z-index: 1050;">
+            <div class="toast show" role="alert">
+                <div class="toast-header">
+                    <i class="bi bi-info-circle text-primary me-2"></i>
+                    <strong class="me-auto">Sistema</strong>
+                    <button @click="showToast = false" type="button" class="btn-close"></button>
+                </div>
+                <div class="toast-body">
+                    {{ toastMessage }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap 5 JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    // Estado de autenticación
+                    isLoggedIn: false,
+                    currentUser: '',
+                    showLogin: false,
+                    loginForm: {
+                        username: '',
+                        password: ''
+                    },
+
+                    // Formulario principal
+                    form: {
+                        nombre: '',
+                        obra: '',
+                        fecha: new Date().toISOString().split('T')[0],
+                        observaciones: ''
+                    },
+
+                    // Documentos de la tabla
+                    documentos: [],
+                    nextId: 1,
+
+                    // Notificaciones
+                    showToast: false,
+                    toastMessage: ''
+                }
+            },
+            methods: {
+                // Autenticación
+                login() {
+                    // Simulación de login básico
+                    if (this.loginForm.username && this.loginForm.password) {
+                        this.isLoggedIn = true;
+                        this.currentUser = this.loginForm.username;
+                        this.showLogin = false;
+                        this.loginForm = { username: '', password: '' };
+                        this.mostrarToast('¡Sesión iniciada correctamente!');
+                    }
+                },
+
+                logout() {
+                    this.isLoggedIn = false;
+                    this.currentUser = '';
+                    this.limpiarFormulario();
+                    this.mostrarToast('Sesión cerrada');
+                },
+
+                // Gestión de documentos
+                agregarFila() {
+                    this.documentos.push({
+                        id: this.nextId++,
+                        oc_compra: '',
+                        factura: '',
+                        guia_despacho: '',
+                        otros: '',
+                        cantidad: '',
+                        unidad: '',
+                        detalle: '',
+                        proveedor: ''
+                    });
+                },
+
+                eliminarFila(index) {
+                    this.documentos.splice(index, 1);
+                    this.mostrarToast('Documento eliminado');
+                },
+
+                // Formulario
+                limpiarFormulario() {
+                    this.form = {
+                        nombre: '',
+                        obra: '',
+                        fecha: new Date().toISOString().split('T')[0],
+                        observaciones: ''
+                    };
+                    this.documentos = [];
+                    this.mostrarToast('Formulario limpiado');
+                },
+
+                guardarFormulario() {
+                    // Validación básica
+                    if (!this.form.nombre || !this.form.obra) {
+                        this.mostrarToast('Complete los campos obligatorios (Nombre y Obra)');
+                        return;
+                    }
+
+                    // Simulación de guardado
+                    const datos = {
+                        ...this.form,
+                        documentos: this.documentos,
+                        usuario: this.currentUser,
+                        timestamp: new Date().toISOString()
+                    };
+
+                    console.log('Datos a guardar:', datos);
+                    this.mostrarToast('Recepción guardada correctamente');
+                    
+                    // Aquí conectarías con tu backend PHP
+                    // fetch('/api/recepciones', { method: 'POST', body: JSON.stringify(datos) })
+                },
+
+                // Utilidades
+                mostrarToast(mensaje) {
+                    this.toastMessage = mensaje;
+                    this.showToast = true;
+                    setTimeout(() => {
+                        this.showToast = false;
+                    }, 3000);
+                }
+            },
+
+            mounted() {
+                // Agregar una fila inicial cuando se carga la aplicación
+                this.agregarFila();
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
